@@ -1,0 +1,39 @@
+#!/bin/busybox sh
+
+/bin/busybox mkdir -p /sbin /bin /usr/sbin /usr/bin
+/bin/busybox --install
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+
+mkdir -p /proc /sys /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+
+ln -s /proc/net/pnp /etc/resolv.conf
+
+mkdir -p /tmp
+
+# shellcheck disable=SC2046
+set -- $(cat /proc/cmdline)
+ocidd "$@" || (echo "Error: ocidd failed with code $?. Launching emergency shell." && sh)
+
+printf "\rRebooting in 3"
+sleep 1
+printf "\rRebooting in 2"
+sleep 1
+printf "\rRebooting in 1"
+sleep 1
+printf "\rRebooting now!\n"
+reboot -f
+
+while true; do
+    printf "\r%s" '-'
+    sleep 0.25
+    printf "\r%s" '|'
+    sleep 0.25
+    printf "\r%s" '/'
+    sleep 0.25
+    # shellcheck disable=SC1003
+    printf "\r%s" '\'
+    sleep 0.25
+done

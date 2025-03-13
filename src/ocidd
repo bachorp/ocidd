@@ -1,0 +1,103 @@
+#!/bin/sh
+set -e
+
+# shellcheck disable=SC2013
+for arg in "$@"; do
+    case $arg in
+    dd.of=*)
+        disk="${arg#*=}"
+        ;;
+    dd.bs=*)
+        blocksize="${arg#*=}"
+        ;;
+    oci.artifact=*)
+        artifact="${arg#*=}"
+        ;;
+    wait)
+        wait="yes"
+        ;;
+    esac
+done
+
+### artifact ###
+
+if [ -z "$artifact" ]; then
+    printf %s "Please specify the OCI artifact: "
+    read -r artifact
+fi
+echo "Using artifact '$artifact'"
+
+echo "Fetching manifest for artifact '$artifact'"
+manifest="$(oras manifest fetch "$artifact")"
+
+layer="$(echo "$manifest" | jq '.layers.[] | select (.mediaType == "application/octet-stream+gzip")' || (echo "Error: Malformed manifest (multiple manifests for artifact not allowed): $manifest" && exit 1))"
+if [ -z "$layer" ]; then
+    echo "Error: Artifact $artifact does not have exactly one layer of media type 'application/octet-stream+gzip'"
+    exit 1
+fi
+digest="$(echo "$layer" | jq --raw-output .digest || (echo "Error: Malformed manifest.layer[]: $layer" && exit 1))"
+blob="$artifact@$digest"
+echo "Using blob '$blob'"
+
+### disk ###
+
+echo Current disk layout:
+fdisk -l
+echo
+
+if [ -z "$disk" ]; then
+    printf %s "Please specify the target disk: "
+    read -r disk
+fi
+
+if [ ! -e "$disk" ]; then
+    echo "Error: Disk '$disk' not found"
+    exit 1
+fi
+echo "Using disk '$disk'"
+
+### blocksize ###
+
+if [ -z "$blocksize" ]; then
+    echo "Using default blocksize '64k'"
+    blocksize='64k'
+else
+    echo "Using blocksize '$blocksize'"
+fi
+
+### wait ###
+
+if [ -n "$wait" ]; then
+    printf "Confirm installation of blob \033[0;33m%s\033[0m\033[0;32m@\033[0m\033[0;34m%s\033[0m to disk \033[0;31m%s\033[0m? (yes): " "$artifact" "$digest" "$disk"
+    read -r input
+    if [ "$input" != "yes" ]; then
+        echo "Operation canceled!"
+        exit 1
+    fi
+fi
+
+### main ###
+
+rm -f /tmp/oras_rc /tmp/gunzip_rc
+echo "Fetching, decompressing, and writing blob '$blob' to disk '$disk'"
+(oras blob fetch --output - "$blob" || echo $? >/tmp/oras_rc) | (gunzip --stdout || echo $? >/tmp/gunzip_rc) | dd bs="$blocksize" of="$disk" &
+pid=$!
+
+monitor_dd() {
+    sleep 5 # NOTE: We need to wait for dd to start handling signals (otherwise it will crash)
+    while kill -0 "$1" 2>/dev/null; do
+        kill -USR1 "$1"
+        sleep 5
+    done
+}
+
+monitor_dd "$pid" &
+wait "$pid"
+
+if [ -e "/tmp/oras_rc" ]; then
+    exit "$(cat /tmp/oras_rc)"
+fi
+
+if [ -e "/tmp/gunzip_rc" ]; then
+    exit "$(cat /tmp/gunzip_rc)"
+fi

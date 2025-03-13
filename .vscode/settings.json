@@ -1,0 +1,17 @@
+{
+    "cSpell.words": [
+        "blocksize",
+        "cmdline",
+        "Containerfile",
+        "cpio",
+        "defconfig",
+        "devtmpfs",
+        "dpkg",
+        "fdisk",
+        "libelf",
+        "newc",
+        "ocidd",
+        "oras",
+        "sysfs"
+    ]
+}

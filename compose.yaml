@@ -1,0 +1,34 @@
+services:
+  vmlinuz:
+    build:
+      target: vmlinuz
+      dockerfile: Containerfile
+      context: .
+      args:
+        LINUX_VERSION: 6.13.5
+
+    volumes:
+      - ./out:/out:z
+
+    command:
+      - cp
+      - /vmlinuz
+      - /out/
+
+  initramfs:
+    build:
+      target: initramfs
+      dockerfile: Containerfile
+      context: .
+      args:
+        BUSYBOX_VERSION: 1.36.1
+        JQ_VERSION: 1.7.1
+        ORAS_VERSION: 1.2.2
+
+    volumes:
+      - ./out:/out:z
+
+    command:
+      - cp
+      - /initramfs
+      - /out/
