@@ -34,7 +34,7 @@ match arch:
             "dd.of=/dev/sda",
             "console=ttyS0",
         ]
-    case "aarch64":
+    case "aarch64" | "arm64":
         match system := platform.system():
             case "Darwin":
                 bios = (
@@ -51,9 +51,10 @@ match arch:
                     .rstrip()
                 )
             case "Linux":
-                bios = "/usr/share/edk2/aarch64/QEMU_EFI.fd"
+                bios = "/usr/share/AAVMF/AAVMF_CODE.fd"
             case _:
                 raise ValueError(f"Unsupported platform {system!r}")
+
         base_cmd = [
             "qemu-system-aarch64",
             "-kernel",

@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "AAVMF",
         "blocksize",
         "cmdline",
         "Containerfile",
@@ -8,8 +9,11 @@
         "devtmpfs",
         "dpkg",
         "fdisk",
+        "KBUILD",
+        "KCONFIG",
         "libelf",
         "newc",
+        "NOTIMESTAMP",
         "ocidd",
         "oras",
         "sysfs",

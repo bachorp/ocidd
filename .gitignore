@@ -1,1 +1,2 @@
-out
+out/vmlinuz-*
+out/initramfs-*

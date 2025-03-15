@@ -6,6 +6,7 @@ services:
       context: .
       args:
         LINUX_VERSION: 6.13.5
+        KERNEL_BUILD_TIMESTAMP: ${KERNEL_BUILD_TIMESTAMP?}
 
     volumes:
       - ./out:/out:z

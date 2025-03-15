@@ -12,6 +12,7 @@ mv linux-* /linux
 EOF
 
 FROM ubuntu AS vmlinuz
+ARG KERNEL_BUILD_TIMESTAMP
 
 RUN <<EOF
 set -e
@@ -30,7 +31,7 @@ COPY --from=linux-src linux /linux-src
 WORKDIR /linux-src
 
 RUN make defconfig
-RUN make --jobs=$(nproc)
+RUN make KBUILD_BUILD_HOST=localhost KBUILD_BUILD_TIMESTAMP="${KERNEL_BUILD_TIMESTAMP?}" --jobs=$(nproc)
 
 RUN mv $(find arch/*/boot/*Image -type f) /vmlinuz-$(dpkg --print-architecture)
 WORKDIR /
@@ -60,7 +61,7 @@ RUN make defconfig
 RUN sed --in-place '/# CONFIG_STATIC is not set/c\CONFIG_STATIC=y' .config
 # https://lists.busybox.net/pipermail/busybox-cvs/2024-January/041752.html
 RUN sed --in-place '/CONFIG_TC=y/c\# CONFIG_TC is not set' .config
-RUN make --jobs=$(nproc)
+RUN make KCONFIG_NOTIMESTAMP=1 --jobs=$(nproc)
 RUN cp busybox /busybox
 
 FROM debian AS oras
@@ -106,4 +107,4 @@ RUN apt-get update && apt-get install --yes cpio gzip
 
 COPY --from=fs / fs/
 
-RUN cd fs && find . | cpio --format=newc --create | gzip > /initramfs-$(dpkg --print-architecture)
+RUN cd fs && find . | cpio --format=newc --create | gzip > /initramfs-$(dpkg --print-architecture).gz
