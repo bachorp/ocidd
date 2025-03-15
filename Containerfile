@@ -92,19 +92,24 @@ FROM scratch AS ca-certificates
 
 COPY --from=alpine /etc/ssl/certs/ca-certificates.crt ./
 
-FROM scratch AS fs
+FROM debian AS fs
+ARG FS_MTIME
 
-COPY src/init /
-COPY src/ocidd /bin/
-COPY --from=busybox busybox /bin/
-COPY --from=oras oras /bin/
-COPY --from=jq jq /bin/
-COPY --from=ca-certificates ca-certificates.crt /etc/ssl/certs/
+WORKDIR /fs
+
+COPY src/init .
+COPY src/ocidd bin/
+COPY --from=busybox busybox bin/
+COPY --from=oras oras bin/
+COPY --from=jq jq bin/
+COPY --from=ca-certificates ca-certificates.crt etc/ssl/certs/
+
+RUN find . -exec touch -d ${FS_MTIME?} {} +
 
 FROM debian AS initramfs
 
 RUN apt-get update && apt-get install --yes cpio gzip
 
-COPY --from=fs / fs/
+COPY --from=fs fs fs/
 
 RUN cd fs && find . | cpio --format=newc --create | gzip > /initramfs-$(dpkg --print-architecture).gz
