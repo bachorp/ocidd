@@ -28,7 +28,7 @@ match arch:
             "-kernel",
             "out/vmlinuz-amd64",
             "-initrd",
-            "out/initramfs-amd64",
+            "out/initramfs-amd64.gz",
         ]
         cmdline += [
             "dd.of=/dev/sda",
@@ -60,7 +60,7 @@ match arch:
             "-kernel",
             "out/vmlinuz-arm64",
             "-initrd",
-            "out/initramfs-arm64",
+            "out/initramfs-arm64.gz",
             "-machine",
             "virt",
             "-bios",
