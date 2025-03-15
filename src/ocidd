@@ -10,8 +10,14 @@ for arg in "$@"; do
     dd.bs=*)
         blocksize="${arg#*=}"
         ;;
-    oci.artifact=*)
-        artifact="${arg#*=}"
+    oci.tag=*)
+        tag="${arg#*=}"
+        ;;
+    oci.blob=*)
+        blob="${arg#*=}"
+        ;;
+    oci.allow_no_tls)
+        allow_no_tls="yes"
         ;;
     wait)
         wait="yes"
@@ -19,24 +25,51 @@ for arg in "$@"; do
     esac
 done
 
-### artifact ###
+tag_c="\033[0;34m%s\033[0m"
+blob_c="\033[0;32m%s\033[0m"
+disk_c="\033[0;31m%s\033[0m"
+blocksize_c="\033[0;33m%s\033[0m"
 
-if [ -z "$artifact" ]; then
-    printf %s "Please specify the OCI artifact: "
-    read -r artifact
+### TLS ###
+
+if [ -n "$allow_no_tls" ]; then
+    echo "Note: Allowed to fetch without TLS"
+    oras_extra=" --plain-http"
 fi
-echo "Using artifact '$artifact'"
 
-echo "Fetching manifest for artifact '$artifact'"
-manifest="$(oras manifest fetch "$artifact")"
+### blob ###
 
-layer="$(echo "$manifest" | jq '.layers.[] | select (.mediaType == "application/octet-stream+gzip")' || (echo "Error: Malformed manifest (multiple manifests for artifact not allowed): $manifest" && exit 1))"
-if [ -z "$layer" ]; then
-    echo "Error: Artifact $artifact does not have exactly one layer of media type 'application/octet-stream+gzip'"
-    exit 1
+if [ -z "$blob" ]; then
+    if [ -z "$tag" ]; then
+        # shellcheck disable=SC2059
+        printf "Please specify the OCI $tag_c (empty for specifying a blob instead): " tag
+        read -r tag
+        while [ -z "$tag" ] && [ -z "$blob" ]; do
+            # shellcheck disable=SC2059
+            printf "Please specify the OCI $blob_c: " blob
+            read -r blob
+        done
+    fi
+else
+    if [ -n "$tag" ]; then
+        echo "Error: Both 'oci.tag' and 'oci.blob' given"
+        exit 1
+    fi
 fi
-digest="$(echo "$layer" | jq --raw-output .digest || (echo "Error: Malformed manifest.layer[]: $layer" && exit 1))"
-blob="$artifact@$digest"
+
+if [ -n "$tag" ]; then
+    echo "Fetching manifest for tag '$tag'"
+    # shellcheck disable=SC2086
+    manifest="$(oras manifest fetch$oras_extra "$tag")"
+
+    layer="$(echo "$manifest" | jq '.layers.[] | select (.mediaType == "application/octet-stream+gzip")' || (echo "Error: Malformed manifest (multiple manifests for tag not allowed): $manifest" && exit 1))"
+    if [ -z "$layer" ]; then
+        echo "Error: Manifest for tag '$tag' does not declare exactly one layer of media type 'application/octet-stream+gzip'"
+        exit 1
+    fi
+    digest="$(echo "$layer" | jq --raw-output .digest || (echo "Error: Malformed manifest.layer[]: $layer" && exit 1))"
+    blob="$tag@$digest"
+fi
 echo "Using blob '$blob'"
 
 ### disk ###
@@ -45,10 +78,11 @@ echo Current disk layout:
 fdisk -l
 echo
 
-if [ -z "$disk" ]; then
-    printf %s "Please specify the target disk: "
+while [ -z "$disk" ]; do
+    # shellcheck disable=SC2059
+    printf "Please specify the target $disk_c: " disk
     read -r disk
-fi
+done
 
 if [ ! -e "$disk" ]; then
     echo "Error: Disk '$disk' not found"
@@ -58,17 +92,18 @@ echo "Using disk '$disk'"
 
 ### blocksize ###
 
-if [ -z "$blocksize" ]; then
-    echo "Using default blocksize '64k'"
-    blocksize='64k'
-else
-    echo "Using blocksize '$blocksize'"
-fi
+while [ -z "$blocksize" ]; do
+    # shellcheck disable=SC2059
+    printf "Please specify the $blocksize_c: " blocksize
+    read -r blocksize
+done
+echo "Using blocksize '$blocksize'"
 
 ### wait ###
 
 if [ -n "$wait" ]; then
-    printf "Confirm installation of blob \033[0;33m%s\033[0m\033[0;32m@\033[0m\033[0;34m%s\033[0m to disk \033[0;31m%s\033[0m? (yes): " "$artifact" "$digest" "$disk"
+    # shellcheck disable=SC2059
+    printf "Confirm copying blob $blob_c to disk $disk_c in blocks of size $blocksize_c? (yes): " "$blob" "$disk" "$blocksize"
     read -r input
     if [ "$input" != "yes" ]; then
         echo "Operation canceled!"
@@ -78,9 +113,11 @@ fi
 
 ### main ###
 
-rm -f /tmp/oras_rc /tmp/gunzip_rc
-echo "Fetching, decompressing, and writing blob '$blob' to disk '$disk'"
-(oras blob fetch --output - "$blob" || echo $? >/tmp/oras_rc) | (gunzip --stdout || echo $? >/tmp/gunzip_rc) | dd bs="$blocksize" of="$disk" &
+echo "Fetching, decompressing, and writing blob '$blob' to disk '$disk' in blocks of size '$blocksize'"
+oras_rc=$(mktemp)
+gunzip_rc=$(mktemp)
+# shellcheck disable=SC2086
+(oras blob fetch$oras_extra --output - "$blob" || echo $? >"$oras_rc") | (gunzip --stdout || echo $? >"$gunzip_rc") | dd bs="$blocksize" of="$disk" &
 pid=$!
 
 monitor_dd() {
@@ -94,10 +131,12 @@ monitor_dd() {
 monitor_dd "$pid" &
 wait "$pid"
 
-if [ -e "/tmp/oras_rc" ]; then
-    exit "$(cat /tmp/oras_rc)"
-fi
+if [ -n "$(cat "$oras_rc")" ]; then
+    echo "Error: 'oras' failed in pipe - disk may be corrupted!"
+    exit "$(cat "$oras_rc")"
 
-if [ -e "/tmp/gunzip_rc" ]; then
-    exit "$(cat /tmp/gunzip_rc)"
+fi
+if [ -n "$(cat "$gunzip_rc")" ]; then
+    echo "Error: 'gunzip' failed in pipe - disk may be corrupted!"
+    exit "$(cat "$gunzip_rc")"
 fi

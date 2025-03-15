@@ -12,6 +12,8 @@
         "newc",
         "ocidd",
         "oras",
-        "sysfs"
+        "sysfs",
+        "urandom",
+        "virt"
     ]
 }

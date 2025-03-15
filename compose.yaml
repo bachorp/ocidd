@@ -11,9 +11,9 @@ services:
       - ./out:/out:z
 
     command:
-      - cp
-      - /vmlinuz
-      - /out/
+      - sh
+      - -c
+      - cp vmlinuz-* /out/
 
   initramfs:
     build:
@@ -29,6 +29,16 @@ services:
       - ./out:/out:z
 
     command:
-      - cp
-      - /initramfs
-      - /out/
+      - sh
+      - -c
+      - cp initramfs-* /out/
+
+  registry:
+    image: registry:2
+    ports:
+      - 5000:5000
+    volumes:
+      - registry-data:/var/lib/registry
+
+volumes:
+  registry-data: null

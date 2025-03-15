@@ -32,7 +32,8 @@ WORKDIR /linux-src
 RUN make defconfig
 RUN make --jobs=$(nproc)
 
-RUN mv $(find arch/*/boot/*Image -type f) /vmlinuz
+RUN mv $(find arch/*/boot/*Image -type f) /vmlinuz-$(dpkg --print-architecture)
+WORKDIR /
 
 FROM alpine AS busybox-src
 ARG BUSYBOX_VERSION
@@ -99,10 +100,10 @@ COPY --from=oras oras /bin/
 COPY --from=jq jq /bin/
 COPY --from=ca-certificates ca-certificates.crt /etc/ssl/certs/
 
-FROM alpine AS initramfs
+FROM debian AS initramfs
 
-RUN apk add --no-cache cpio gzip
+RUN apt-get update && apt-get install --yes cpio gzip
 
 COPY --from=fs / fs/
 
-RUN cd fs && find . | cpio --format=newc --create | gzip > /initramfs
+RUN cd fs && find . | cpio --format=newc --create | gzip > /initramfs-$(dpkg --print-architecture)
