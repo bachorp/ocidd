@@ -92,19 +92,26 @@ FROM scratch AS ca-certificates
 
 COPY --from=alpine /etc/ssl/certs/ca-certificates.crt ./
 
-FROM scratch AS fs
+FROM alpine AS fs
 
-COPY src/init /
-COPY src/ocidd /bin/
-COPY --from=busybox busybox /bin/
-COPY --from=oras oras /bin/
-COPY --from=jq jq /bin/
-COPY --from=ca-certificates ca-certificates.crt /etc/ssl/certs/
+WORKDIR /fs
 
-FROM debian AS initramfs
+COPY src/init .
+COPY src/ocidd bin/
+RUN chmod 755 init bin/ocidd
+
+COPY --from=busybox busybox bin/
+COPY --from=oras oras bin/
+COPY --from=jq jq bin/
+COPY --from=ca-certificates ca-certificates.crt etc/ssl/certs/
+
+FROM ubuntu AS initramfs
+ARG FS_MTIME
 
 RUN apt-get update && apt-get install --yes cpio gzip
 
-COPY --from=fs / fs/
+COPY --from=fs fs fs/
 
-RUN cd fs && find . | cpio --format=newc --create | gzip > /initramfs-$(dpkg --print-architecture).gz
+# NOTE: mtime cannot be set in another stage
+RUN cd fs && find . -exec touch -d ${FS_MTIME?} {} +
+RUN cd fs && find . | sort | cpio --reproducible --format=newc --create | gzip > /initramfs-$(dpkg --print-architecture).gz

@@ -25,6 +25,7 @@ services:
         BUSYBOX_VERSION: 1.36.1
         JQ_VERSION: 1.7.1
         ORAS_VERSION: 1.2.2
+        FS_MTIME: ${FS_MTIME?}
 
     volumes:
       - ./out:/out:z
