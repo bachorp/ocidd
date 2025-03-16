@@ -1,3 +1,5 @@
+ARG ALPINE_VERSION=3.21.3
+
 FROM alpine AS linux-src
 ARG LINUX_VERSION
 
@@ -11,8 +13,8 @@ rm linux-*.tar.xz
 mv linux-* /linux
 EOF
 
-FROM ubuntu AS vmlinuz
-ARG KERNEL_BUILD_TIMESTAMP
+FROM ubuntu:noble AS vmlinuz
+ARG BUILD_TIMESTAMP
 
 RUN <<EOF
 set -e
@@ -31,7 +33,7 @@ COPY --from=linux-src linux /linux-src
 WORKDIR /linux-src
 
 RUN make defconfig
-RUN make KBUILD_BUILD_HOST=localhost KBUILD_BUILD_TIMESTAMP="${KERNEL_BUILD_TIMESTAMP?}" --jobs=$(nproc)
+RUN make KBUILD_BUILD_HOST=localhost KBUILD_BUILD_TIMESTAMP="${BUILD_TIMESTAMP?}" --jobs=$(nproc)
 
 RUN mv $(find arch/*/boot/*Image -type f) /vmlinuz-$(dpkg --print-architecture)
 WORKDIR /
@@ -50,7 +52,7 @@ rm busybox-*.tar
 mv busybox-* /busybox
 EOF
 
-FROM ubuntu AS busybox
+FROM ubuntu:noble AS busybox
 
 RUN apt-get update && apt-get install --yes build-essential
 
@@ -88,9 +90,9 @@ mv jq-linux-* jq
 chmod +x jq
 EOF
 
-FROM scratch AS ca-certificates
+FROM alpine:$ALPINE_VERSION AS ca-certificates
 
-COPY --from=alpine /etc/ssl/certs/ca-certificates.crt ./
+RUN cp /etc/ssl/certs/ca-certificates.crt ./
 
 FROM alpine AS fs
 
@@ -106,12 +108,12 @@ COPY --from=jq jq bin/
 COPY --from=ca-certificates ca-certificates.crt etc/ssl/certs/
 
 FROM ubuntu AS initramfs
-ARG FS_MTIME
+ARG MTIME
 
 RUN apt-get update && apt-get install --yes cpio gzip
 
 COPY --from=fs fs fs/
 
 # NOTE: mtime cannot be set in another stage
-RUN cd fs && find . -exec touch -d ${FS_MTIME?} {} +
+RUN find fs -exec touch -d ${MTIME?} {} +
 RUN cd fs && find . | sort | cpio --reproducible --format=newc --create | gzip > /initramfs-$(dpkg --print-architecture).gz

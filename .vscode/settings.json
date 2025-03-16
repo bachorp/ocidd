@@ -12,6 +12,7 @@
         "KBUILD",
         "KCONFIG",
         "libelf",
+        "mydisk",
         "newc",
         "NOTIMESTAMP",
         "ocidd",

@@ -1,31 +1,15 @@
 services:
-  vmlinuz:
-    build:
-      target: vmlinuz
-      dockerfile: Containerfile
-      context: .
-      args:
-        LINUX_VERSION: 6.13.5
-        KERNEL_BUILD_TIMESTAMP: ${KERNEL_BUILD_TIMESTAMP?}
-
-    volumes:
-      - ./out:/out:z
-
-    command:
-      - sh
-      - -c
-      - cp vmlinuz-* /out/
-
   initramfs:
     build:
       target: initramfs
       dockerfile: Containerfile
       context: .
       args:
+        # ALPINE_VERSION set in Containerfile
         BUSYBOX_VERSION: 1.36.1
         JQ_VERSION: 1.7.1
         ORAS_VERSION: 1.2.2
-        FS_MTIME: ${FS_MTIME?}
+        MTIME: ${FS_MTIME?}
 
     volumes:
       - ./out:/out:z
@@ -34,6 +18,23 @@ services:
       - sh
       - -c
       - cp initramfs-* /out/
+
+  vmlinuz:
+    build:
+      target: vmlinuz
+      dockerfile: Containerfile
+      context: .
+      args:
+        LINUX_VERSION: 6.13.5
+        BUILD_TIMESTAMP: ${KERNEL_BUILD_TIMESTAMP?}
+
+    volumes:
+      - ./out:/out:z
+
+    command:
+      - sh
+      - -c
+      - cp vmlinuz-* /out/
 
   registry:
     image: registry:2
