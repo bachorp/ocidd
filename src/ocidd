@@ -1,5 +1,5 @@
-#!/bin/sh
-set -e
+#!/bin/busybox sh
+set -eo pipefail
 
 # shellcheck disable=SC2013
 for arg in "$@"; do
@@ -114,10 +114,8 @@ fi
 ### main ###
 
 echo "Fetching, decompressing, and writing blob '$blob' to disk '$disk' in blocks of size '$blocksize'"
-oras_rc=$(mktemp)
-gunzip_rc=$(mktemp)
 # shellcheck disable=SC2086
-(oras blob fetch$oras_extra --output - "$blob" || echo $? >"$oras_rc") | (gunzip --stdout || echo $? >"$gunzip_rc") | dd bs="$blocksize" of="$disk" &
+oras blob fetch$oras_extra --output - "$blob" | gunzip --stdout | dd bs="$blocksize" of="$disk" &
 pid=$!
 
 monitor_dd() {
@@ -129,14 +127,4 @@ monitor_dd() {
 }
 
 monitor_dd "$pid" &
-wait "$pid"
-
-if [ -n "$(cat "$oras_rc")" ]; then
-    echo "Error: 'oras' failed in pipe - disk may be corrupted!"
-    exit "$(cat "$oras_rc")"
-
-fi
-if [ -n "$(cat "$gunzip_rc")" ]; then
-    echo "Error: 'gunzip' failed in pipe - disk may be corrupted!"
-    exit "$(cat "$gunzip_rc")"
-fi
+wait "$pid" || (echo "Error: Procedure failed with code $? - disk may be corrupted!" && exit 1)
