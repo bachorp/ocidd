@@ -1,7 +1,7 @@
 # ocidd
 
 [ocidd](src/ocidd) is a program that fetches a raw (gzipped) blob from an OCI registry and writes it to some volume.
-This can help to simplify system installation and to avoid reliance on certain infrastructure (virtualization, storage network, ..) or specialized installers (Cloud-init, Kickstart, ..).
+This can help to simplify system installation and to avoid reliance on certain infrastructure (virtualization, storage network, ..) or specialized installers (Kickstart, Preseed, ..).
 
 Bundled in an appropriate initial RAM-disk (initrd/initramfs), `ocidd` can be used, for example, for a fully automated installation of bare-metal hosts from a PXE.
 We provide prebuilt vmlinuz+initramfs (`x86_64`, `arm64`).
