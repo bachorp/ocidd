@@ -15,6 +15,7 @@ EOF
 
 FROM ubuntu:noble AS vmlinuz
 ARG BUILD_TIMESTAMP
+ARG CONFIG=""
 
 RUN <<EOF
 set -e
@@ -33,6 +34,7 @@ COPY --from=linux-src linux /linux-src
 WORKDIR /linux-src
 
 RUN make defconfig
+RUN [ -z "${CONFIG}" ] || scripts/config $CONFIG
 RUN make KBUILD_BUILD_HOST=localhost KBUILD_BUILD_TIMESTAMP="${BUILD_TIMESTAMP?}" --jobs=$(nproc)
 
 RUN mv $(find arch/*/boot/*Image -type f) /vmlinuz-$(dpkg --print-architecture)

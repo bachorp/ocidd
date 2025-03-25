@@ -27,6 +27,7 @@ services:
       args:
         LINUX_VERSION: 6.13.5
         BUILD_TIMESTAMP: ${KERNEL_BUILD_TIMESTAMP?}
+        CONFIG: ${KERNEL_CONFIG-}
 
     volumes:
       - ./out:/out:z

@@ -41,6 +41,15 @@ echo "KERNEL_BUILD_TIMESTAMP='$(date)'" > .env
 echo "FS_MTIME='$(date -u -Iseconds)'" >> .env
 ```
 
+### Customization
+
+The kernel build parameters can be customized.
+For example, to build a kernel with hardware support for ESXi hosts, you might want to add the following to `.env`.
+
+```sh
+KERNEL_CONFIG='--enable CONFIG_VMXNET3 --enable CONFIG_SCSI_LOWLEVEL --enable CONFIG_VMWARE_PVSCSI'
+```
+
 ## Testing
 
 See [test.py](test.py) for testing using [QEMU](https://www.qemu.org/).
