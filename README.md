@@ -31,7 +31,7 @@ Otherwise, it will initiate a reboot.
 The following [compose services](compose.yaml) are provided:
 
 - `initramfs` for building a ram disk containing [ocidd](src/ocidd), an appropriate [init script](src/init), as well as the required tools [busybox](https://busybox.net/), [oras](https://oras.land/), and [jq](https://jqlang.org/), and a CA-bundle taken from [Alpine](https://hub.docker.com/_/alpine).
-- `vmlinuz` for building a linux kernel with the default configuration.
+- `vmlinuz` for building a linux kernel.
 - `registry` for running a [simple OCI registry](https://hub.docker.com/_/registry) (without TLS) for testing purposes.
 
 To ensure builds are reproducible, dates need to be provided for the kernel version/the mtime of files in the initramfs:
